@@ -83,10 +83,17 @@ SandboxResult Sandbox::execute(const std::string& command, const std::string& in
     si.hStdError = hErrorWrite;
     si.dwFlags |= STARTF_USESTDHANDLES;
     
+    // 处理命令行 - 在Windows中，需要使用cmd.exe执行内置命令
+    std::string full_command = "cmd.exe /c " + command;
+    
+    // CreateProcessA需要可修改的字符串
+    char* cmd_line = new char[full_command.size() + 1];
+    strcpy(cmd_line, full_command.c_str());
+    
     // 启动进程
     BOOL bSuccess = CreateProcessA(
         NULL,                  // 应用程序名称
-        (LPSTR)command.c_str(),// 命令行
+        cmd_line,              // 命令行
         NULL,                  // 进程安全属性
         NULL,                  // 线程安全属性
         TRUE,                  // 继承句柄
@@ -98,13 +105,24 @@ SandboxResult Sandbox::execute(const std::string& command, const std::string& in
     );
     
     if (!bSuccess) {
-        result.error = "Failed to create process";
+        DWORD error_code = GetLastError();
+        char error_msg[256];
+        FormatMessageA(
+            FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+            NULL, error_code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            error_msg, sizeof(error_msg), NULL
+        );
+        result.error = "Failed to create process: " + std::string(error_msg);
+        delete[] cmd_line;
         CloseHandle(hOutputRead);
         CloseHandle(hOutputWrite);
         CloseHandle(hErrorRead);
         CloseHandle(hErrorWrite);
         return result;
     }
+    
+    // 释放命令行内存
+    delete[] cmd_line;
     
     // 关闭不需要的管道句柄
     CloseHandle(hOutputWrite);
