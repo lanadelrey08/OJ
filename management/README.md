@@ -1,12 +1,4 @@
-# OJ 项目
-
-这是一个 OJ（Online Judge）实验项目仓库。  
-当前仓库包含两部分内容：
-
-- 已有的 C++ 公共服务 / 评测相关模块
-- 新增的基于 `Spring Boot` 的 Java 题目管理模块
-
-下面重点说明本次新增的 Java 题目管理模块。
+# 题目管理模块
 
 ## 功能概览
 
@@ -40,10 +32,8 @@
 
 ```text
 E:\OJ
-├── common
-├── docs
-├── judge
 ├── src
+│   ├── README
 │   ├── main
 │   │   ├── java\com\oj\problem
 │   │   │   ├── common
@@ -61,10 +51,6 @@ E:\OJ
 │   └── test
 │       ├── java\com\oj\problem
 │       └── resources\application-test.yml
-├── pom.xml
-├── README.md
-├── 测试说明.md
-└── 题目管理模块实现说明.md
 ```
 
 ## 主要接口
