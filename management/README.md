@@ -31,9 +31,11 @@
 ## 项目结构
 
 ```text
-E:\OJ
+management
+├── pom.xml
+├── README.md
+├── 测试说明.md
 ├── src
-│   ├── README
 │   ├── main
 │   │   ├── java\com\oj\problem
 │   │   │   ├── common
@@ -47,7 +49,8 @@ E:\OJ
 │   │   │   └── ProblemManagementApplication.java
 │   │   └── resources
 │   │       ├── application.yml
-│   │       └── schema.sql
+│   │       ├── schema.sql
+│   │       └── init-data.sql
 │   └── test
 │       ├── java\com\oj\problem
 │       └── resources\application-test.yml
@@ -78,7 +81,7 @@ E:\OJ
 ### 运行配置
 
 主程序配置文件：
-[application.yml](E:/OJ/src/main/resources/application.yml)
+[application.yml](E:/OJ/__publish_repo/management/src/main/resources/application.yml)
 
 主要配置项包括：
 
@@ -111,14 +114,17 @@ security:
 ### 测试配置
 
 测试配置文件：
-[application-test.yml](E:/OJ/src/test/resources/application-test.yml)
+[application-test.yml](E:/OJ/__publish_repo/management/src/test/resources/application-test.yml)
 
 测试默认使用 H2 内存数据库，不依赖真实 MySQL。
 
 ## 数据库初始化
 
 数据库脚本文件：
-[schema.sql](E:/OJ/src/main/resources/schema.sql)
+[schema.sql](E:/OJ/__publish_repo/management/src/main/resources/schema.sql)
+
+测试数据脚本文件：
+[init-data.sql](E:/OJ/__publish_repo/management/src/main/resources/init-data.sql)
 
 当前包含的核心表：
 
@@ -128,12 +134,118 @@ security:
 - `tags`
 - `problem_tags`
 
+## 数据库使用教程
+
+如果你想把该模块实际跑起来，并通过浏览器验证接口是否能正常访问数据库，推荐按下面步骤操作。
+
+### 1. 安装并启动 MySQL
+
+- 推荐 MySQL 8.0
+- 安装完成后确认以下命令可用：
+
+```bash
+mysql --version
+```
+
+### 2. 创建数据库
+
+先登录 MySQL：
+
+```bash
+mysql -u root -p
+```
+
+输入密码后执行：
+
+```sql
+CREATE DATABASE IF NOT EXISTS oj CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE oj;
+```
+
+### 3. 导入表结构
+
+在项目根目录 `management` 下执行：
+
+```bash
+mysql -u root -p oj < src/main/resources/schema.sql
+```
+
+这一步会创建：
+
+- `users`
+- `problems`
+- `test_cases`
+- `tags`
+- `problem_tags`
+
+### 4. 导入测试数据
+
+继续执行：
+
+```bash
+mysql -u root -p oj < src/main/resources/init-data.sql
+```
+
+这个脚本会插入：
+
+- 一个管理员用户
+- 一条公开题目 `Hello Problem`
+- 两条测试用例
+- 一个标签 `入门`
+
+### 5. 修改数据库连接配置
+
+打开：
+[application.yml](E:/OJ/__publish_repo/management/src/main/resources/application.yml)
+
+确认下面配置与你本机 MySQL 一致：
+
+```yaml
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/oj?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+    username: root
+    password: 你的MySQL密码
+```
+
+### 6. 启动项目
+
+在 `management` 目录下运行：
+
+```bash
+mvn spring-boot:run
+```
+
+或者直接在 IDEA 中运行：
+[ProblemManagementApplication.java](E:/OJ/__publish_repo/management/src/main/java/com/oj/problem/ProblemManagementApplication.java)
+
+### 7. 在浏览器中验证接口
+
+项目启动成功后，可直接访问：
+
+- 题目列表：
+  [http://localhost:8080/api/v1/problems](http://localhost:8080/api/v1/problems)
+- 题目详情：
+  [http://localhost:8080/api/v1/problems/1](http://localhost:8080/api/v1/problems/1)
+
+如果数据库与项目连接正常，你应该看到包含 `Hello Problem` 的 JSON 返回结果。
+
+### 8. 快速排查
+
+如果浏览器访问失败，优先检查：
+
+1. MySQL 服务是否启动
+2. `oj` 数据库是否创建成功
+3. `schema.sql` 和 `init-data.sql` 是否已执行
+4. `application.yml` 中用户名和密码是否正确
+5. Spring Boot 项目是否启动成功
+
 ## 如何导入 IDEA
 
 1. 打开 IDEA
 2. 选择 `Open`
-3. 打开项目目录 `E:\OJ`
-4. 如果没有自动识别为 Maven 项目，右键 [pom.xml](E:/OJ/pom.xml)
+3. 打开项目目录 `management`
+4. 如果没有自动识别为 Maven 项目，右键 [pom.xml](E:/OJ/__publish_repo/management/pom.xml)
 5. 选择 `Add as Maven Project`
 6. 配置 `Project SDK` 为 JDK 8 或更高版本
 
@@ -150,7 +262,7 @@ mvn spring-boot:run
 ### 方式二：IDEA
 
 直接运行：
-[ProblemManagementApplication.java](E:/OJ/src/main/java/com/oj/problem/ProblemManagementApplication.java)
+[ProblemManagementApplication.java](E:/OJ/__publish_repo/management/src/main/java/com/oj/problem/ProblemManagementApplication.java)
 
 启动后访问：
 
@@ -182,7 +294,7 @@ mvn clean verify
 
 覆盖率报告生成位置：
 
-[JaCoCo 报告](E:/OJ/target/site/jacoco/index.html)
+[JaCoCo 报告](E:/OJ/__publish_repo/management/target/site/jacoco/index.html)
 
 说明：
 
@@ -194,11 +306,11 @@ mvn clean verify
 
 主要测试文件：
 
-- [ProblemServiceImplTest.java](E:/OJ/src/test/java/com/oj/problem/service/impl/ProblemServiceImplTest.java)
-- [ProblemControllerTest.java](E:/OJ/src/test/java/com/oj/problem/controller/ProblemControllerTest.java)
-- [JwtTokenServiceTest.java](E:/OJ/src/test/java/com/oj/problem/security/JwtTokenServiceTest.java)
-- [GlobalExceptionHandlerTest.java](E:/OJ/src/test/java/com/oj/problem/exception/GlobalExceptionHandlerTest.java)
-- [ApiResponseTest.java](E:/OJ/src/test/java/com/oj/problem/common/ApiResponseTest.java)
+- [ProblemServiceImplTest.java](E:/OJ/__publish_repo/management/src/test/java/com/oj/problem/service/impl/ProblemServiceImplTest.java)
+- [ProblemControllerTest.java](E:/OJ/__publish_repo/management/src/test/java/com/oj/problem/controller/ProblemControllerTest.java)
+- [JwtTokenServiceTest.java](E:/OJ/__publish_repo/management/src/test/java/com/oj/problem/security/JwtTokenServiceTest.java)
+- [GlobalExceptionHandlerTest.java](E:/OJ/__publish_repo/management/src/test/java/com/oj/problem/exception/GlobalExceptionHandlerTest.java)
+- [ApiResponseTest.java](E:/OJ/__publish_repo/management/src/test/java/com/oj/problem/common/ApiResponseTest.java)
 
 ## 认证说明
 
@@ -227,11 +339,7 @@ JWT payload 至少包含：
 
 ## 相关文档
 
-- [题目管理模块实现说明.md](E:/OJ/题目管理模块实现说明.md)
-- [测试说明.md](E:/OJ/测试说明.md)
-- [API接口规范.md](E:/OJ/API接口规范.md)
-- [架构设计文档.md](E:/OJ/架构设计文档.md)
-- [数据模型设计.md](E:/OJ/数据模型设计.md)
+- [测试说明.md](E:/OJ/__publish_repo/management/测试说明.md)
 
 ## 当前实现边界
 
