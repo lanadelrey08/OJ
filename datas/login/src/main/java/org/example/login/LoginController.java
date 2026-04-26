@@ -37,7 +37,7 @@ public class LoginController {
         String PWD = userDAO.findPasswordByUsername(username);
         if (PWD.equals(password)) {
             model.addAttribute("username", username);
-            return "problems";
+            return "/welcome";
         }
         else {
             model.addAttribute("error", "用户名或密码错误");
@@ -58,8 +58,8 @@ public class LoginController {
         else {
             int register = userDAO.registerUser(username, password);
             if (register > 0) {
-                model.addAttribute("username", username);
-                return "problems";
+                model.addAttribute("username", "注册用户成功");
+                return "login";
             }
             else {
                 model.addAttribute("error", "注册失败请联系服务器管理员");
@@ -67,10 +67,5 @@ public class LoginController {
 
             }
         }
-    }
-
-    @GetMapping("/problems")
-    public String showProblemsPage(Model model) {
-        return "problems";
     }
 }

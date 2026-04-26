@@ -1,136 +1,140 @@
 @echo off
 
-rem OJ System Startup Script
+rem OJ 系统启动脚本
 
 setlocal enabledelayedexpansion
 
-rem Check environment
+rem 检查环境
 call :check_environment
 if errorlevel 1 goto :eof
 
-rem Build C++ modules
+rem 编译C++模块
 call :build_cpp
 if errorlevel 1 goto :eof
 
-rem Build Java modules
+rem 编译Java模块
 call :build_java
 if errorlevel 1 goto :eof
 
-rem Start all modules
+rem 启动各个模块
 call :start_modules
 
 pause
 goto :eof
 
 :check_environment
-echo Checking environment...
+echo 检查环境...
 
-rem Check JDK
+rem 检查JDK
 java -version >nul 2>&1
 if errorlevel 1 (
-    echo Error: JDK not found. Please ensure JDK is installed and added to PATH
+    echo 错误：未找到JDK，请确保JDK已安装并添加到环境变量
     exit /b 1
 )
 
-echo JDK check passed
+echo JDK 检查通过
 
-rem Check Maven
-rem 跳过 Maven 检查，因为已经手动验证过 Maven 正常
-echo Maven check passed
+rem 检查Maven
+mvn -version >nul 2>&1
+if errorlevel 1 (
+    echo 错误：未找到Maven，请确保Maven已安装并添加到环境变量
+    exit /b 1
+)
 
-rem Check MySQL
+echo Maven 检查通过
+
+rem 检查MySQL
 mysql --version >nul 2>&1
 if errorlevel 1 (
-    echo Warning: MySQL command line tool not found, but system may still work
+    echo 警告：未找到MySQL命令行工具，但系统仍可能正常运行
 ) else (
-    echo MySQL check passed
+    echo MySQL 检查通过
 )
 
-rem Check Redis
+rem 检查Redis
 redis-cli --version >nul 2>&1
 if errorlevel 1 (
-    echo Warning: Redis command line tool not found, but system may still work
+    echo 警告：未找到Redis命令行工具，但系统仍可能正常运行
 ) else (
-    echo Redis check passed
+    echo Redis 检查通过
 )
 
-echo Environment check completed
+echo 环境检查完成
 
 :build_cpp
-echo Building C++ modules...
+echo 编译C++模块...
 
 if not exist build mkdir build
 cd build
 
 cmake .. -DOJ_ENABLE_MYSQL=ON -DOJ_ENABLE_REDIS=ON
 if errorlevel 1 (
-    echo Error: CMake configuration failed
+    echo 错误：CMake配置失败
     cd ..
     exit /b 1
 )
 
 cmake --build .
 if errorlevel 1 (
-    echo Error: Build failed
+    echo 错误：编译失败
     cd ..
     exit /b 1
 )
 
 cd ..
-echo C++ modules build completed
+echo C++模块编译完成
 
 :build_java
-echo Building Java modules...
+echo 编译Java模块...
 
 cd management
-call mvn clean package
+mvn clean package
 if errorlevel 1 (
-    echo Error: Java module build failed
+    echo 错误：Java模块编译失败
     cd ..
     exit /b 1
 )
 
 cd ..
-echo Java modules build completed
+echo Java模块编译完成
 
 :start_modules
-echo Starting all modules...
+echo 启动各个模块...
 
-rem Start Management module
-start "Management Module" cmd /k "cd management && java -jar target\problem-management-1.0.0.jar"
+rem 启动管理模块
+start "Management Module" cmd /c "cd management && java -jar target/problem-management-1.0.0.jar"
 
-rem Wait 2 seconds
-ping localhost -n 3 >nul
+rem 等待1秒
+ping localhost -n 2 >nul
 
-rem Start Judge module
-start "Judge Module" cmd /k "cd build\judge && judge.exe"
+rem 启动评测模块
+start "Judge Module" cmd /c "cd build/judge && judge.exe"
 
-rem Wait 2 seconds
-ping localhost -n 3 >nul
+rem 等待1秒
+ping localhost -n 2 >nul
 
-rem Start Discussion module
-start "Discussion Module" cmd /k "cd build\discussion && discussion.exe"
+rem 启动讨论区模块
+start "Discussion Module" cmd /c "cd build/discussion && discussion.exe"
 
-rem Wait 2 seconds
-ping localhost -n 3 >nul
+rem 等待1秒
+ping localhost -n 2 >nul
 
-rem Start Rank module
-start "Rank Module" cmd /k "cd build\rank && rank.exe"
+rem 启动排行榜模块
+start "Rank Module" cmd /c "cd build/rank && rank.exe"
 
-rem Wait 2 seconds
-ping localhost -n 3 >nul
+rem 等待1秒
+ping localhost -n 2 >nul
 
-rem Start Login module
-start "Login Module" cmd /k "cd datas\login && call mvn spring-boot:run"
+rem 启动登录模块
+start "Login Module" cmd /c "cd datas/login && mvn spring-boot:run"
 
-echo All modules started
+echo 所有模块已启动
 
-echo.
-echo System startup completed!
-echo Management Module: http://localhost:8083
-echo Judge Module: http://localhost:8080
-echo Discussion Module: http://localhost:8081
-echo Rank Module: http://localhost:8082
-echo Login Module: http://localhost:8084
+echo 系统启动完成！
+echo 管理模块：http://localhost:8083
+echo 评测模块：http://localhost:8080
+echo 讨论区模块：http://localhost:8081
+echo 排行榜模块：http://localhost:8082
+echo 登录模块：http://localhost:8084
 
 goto :eof
