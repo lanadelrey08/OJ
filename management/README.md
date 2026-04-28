@@ -80,6 +80,16 @@ E:\OJ
 主程序配置文件：
 [application.yml](E:/OJ/src/main/resources/application.yml)
 
+为便于与 `common` 模块联调，management 运行时默认读取与 `common` 一致的数据库环境变量：
+
+- `OJ_MYSQL_HOST`，默认 `localhost`
+- `OJ_MYSQL_PORT`，默认 `3306`
+- `OJ_MYSQL_DATABASE`，默认 `oj`
+- `OJ_MYSQL_USER`，默认 `root`
+- `OJ_MYSQL_PASSWORD`，默认 `password`
+
+如果没有显式设置这些环境变量，management 会按上述默认值拼接 JDBC URL。
+
 主要配置项包括：
 
 - 服务端口：`8080`
@@ -98,9 +108,9 @@ server:
 
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/oj?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8
-    username: root
-    password: password
+    url: jdbc:mysql://${OJ_MYSQL_HOST:localhost}:${OJ_MYSQL_PORT:3306}/${OJ_MYSQL_DATABASE:oj}?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+    username: ${OJ_MYSQL_USER:root}
+    password: ${OJ_MYSQL_PASSWORD:password}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
 security:
@@ -144,8 +154,15 @@ security:
 在项目根目录执行：
 
 ```bash
+set OJ_MYSQL_HOST=127.0.0.1
+set OJ_MYSQL_PORT=3306
+set OJ_MYSQL_DATABASE=oj
+set OJ_MYSQL_USER=root
+set OJ_MYSQL_PASSWORD=password
 mvn spring-boot:run
 ```
+
+如果你已经为 `common` 模块配置好了上述变量，management 可以直接复用同一套数据库连接信息。
 
 ### 方式二：IDEA
 
