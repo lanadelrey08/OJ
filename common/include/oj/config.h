@@ -7,7 +7,7 @@ namespace oj {
 inline constexpr const char* kDefaultMysqlHost = "127.0.0.1";
 inline constexpr unsigned kDefaultMysqlPort = 3306;
 inline constexpr const char* kDefaultMysqlUser = "oj";
-inline constexpr const char* kDefaultMysqlDatabase = "oj";
+inline constexpr const char* kDefaultMysqlDatabase = "myOJ";
 inline constexpr unsigned kDefaultMysqlPoolMin = 2;
 inline constexpr unsigned kDefaultMysqlPoolMax = 16;
 

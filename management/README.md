@@ -79,7 +79,7 @@ management
 
 - `OJ_MYSQL_HOST`，默认 `127.0.0.1`
 - `OJ_MYSQL_PORT`，默认 `3306`
-- `OJ_MYSQL_DATABASE`，默认 `oj`
+- `OJ_MYSQL_DATABASE`，默认 `myOJ`
 - `OJ_MYSQL_USER`，默认 `oj`
 - `OJ_MYSQL_PASSWORD`，默认空字符串
 - `OJ_MYSQL_POOL_MIN`，默认 `2`
@@ -112,7 +112,7 @@ server:
 
 spring:
   datasource:
-    url: jdbc:mysql://${OJ_MYSQL_HOST:127.0.0.1}:${OJ_MYSQL_PORT:3306}/${OJ_MYSQL_DATABASE:oj}?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+    url: jdbc:mysql://${OJ_MYSQL_HOST:127.0.0.1}:${OJ_MYSQL_PORT:3306}/${OJ_MYSQL_DATABASE:myOJ}?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8
     username: ${OJ_MYSQL_USER:oj}
     password: ${OJ_MYSQL_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -161,8 +161,8 @@ mysql -u root -p
 执行：
 
 ```sql
-CREATE DATABASE IF NOT EXISTS oj CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE oj;
+CREATE DATABASE IF NOT EXISTS myOJ CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE myOJ;
 ```
 
 ### 2. 导入表结构
@@ -170,7 +170,7 @@ USE oj;
 在 `management` 目录下执行：
 
 ```bash
-mysql -u root -p oj < src/main/resources/schema.sql
+mysql -u root -p myOJ < src/main/resources/schema.sql
 ```
 
 ### 3. 导入测试数据
@@ -178,7 +178,7 @@ mysql -u root -p oj < src/main/resources/schema.sql
 继续执行：
 
 ```bash
-mysql -u root -p oj < src/main/resources/init-data.sql
+mysql -u root -p myOJ < src/main/resources/init-data.sql
 ```
 
 这会导入一条公开题目 `Hello Problem`，可直接用于浏览器接口验证。
@@ -190,7 +190,7 @@ mysql -u root -p oj < src/main/resources/init-data.sql
 ```powershell
 $env:OJ_MYSQL_HOST='127.0.0.1'
 $env:OJ_MYSQL_PORT='3306'
-$env:OJ_MYSQL_DATABASE='oj'
+$env:OJ_MYSQL_DATABASE='myOJ'
 $env:OJ_MYSQL_USER='oj'
 $env:OJ_MYSQL_PASSWORD='你的MySQL密码'
 $env:OJ_MYSQL_POOL_MIN='2'
@@ -221,7 +221,7 @@ $env:OJ_JWT_SECRET='your-own-secret'
 ```bash
 set OJ_MYSQL_HOST=127.0.0.1
 set OJ_MYSQL_PORT=3306
-set OJ_MYSQL_DATABASE=oj
+set OJ_MYSQL_DATABASE=myOJ
 set OJ_MYSQL_USER=oj
 set OJ_MYSQL_PASSWORD=
 set OJ_MYSQL_POOL_MIN=2
