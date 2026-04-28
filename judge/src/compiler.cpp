@@ -23,7 +23,7 @@ CompileResult executeCommand(const std::string& command) {
     
     // 在Windows环境下，通过重定向标准错误到标准输出
     std::string cmd = command + " 2>&1";
-    FILE* pipe = popen(cmd.c_str(), "r");
+    FILE* pipe = _popen(cmd.c_str(), "r");
     if (!pipe) {
         result.error = "Failed to open pipe";
         result.output = "Command: " + cmd;
@@ -37,7 +37,7 @@ CompileResult executeCommand(const std::string& command) {
         output += buffer;
     }
     
-    result.exit_code = pclose(pipe);
+    result.exit_code = _pclose(pipe);
     result.success = (result.exit_code == 0);
     result.output = "Command: " + cmd + "\nOutput: " + output;
     
