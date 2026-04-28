@@ -82,13 +82,15 @@ E:\OJ
 
 为便于与 `common` 模块联调，management 运行时默认读取与 `common` 一致的数据库环境变量：
 
-- `OJ_MYSQL_HOST`，默认 `localhost`
+- `OJ_MYSQL_HOST`，默认 `127.0.0.1`
 - `OJ_MYSQL_PORT`，默认 `3306`
 - `OJ_MYSQL_DATABASE`，默认 `oj`
-- `OJ_MYSQL_USER`，默认 `root`
-- `OJ_MYSQL_PASSWORD`，默认 `password`
+- `OJ_MYSQL_USER`，默认 `oj`
+- `OJ_MYSQL_PASSWORD`，默认空字符串
+- `OJ_MYSQL_POOL_MIN`，默认 `2`
+- `OJ_MYSQL_POOL_MAX`，默认 `16`
 
-如果没有显式设置这些环境变量，management 会按上述默认值拼接 JDBC URL。
+如果没有显式设置这些环境变量，management 会按上述默认值拼接 JDBC URL，并用 HikariCP 读取同一套连接池参数。
 
 主要配置项包括：
 
@@ -108,10 +110,13 @@ server:
 
 spring:
   datasource:
-    url: jdbc:mysql://${OJ_MYSQL_HOST:localhost}:${OJ_MYSQL_PORT:3306}/${OJ_MYSQL_DATABASE:oj}?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8
-    username: ${OJ_MYSQL_USER:root}
-    password: ${OJ_MYSQL_PASSWORD:password}
+    url: jdbc:mysql://${OJ_MYSQL_HOST:127.0.0.1}:${OJ_MYSQL_PORT:3306}/${OJ_MYSQL_DATABASE:oj}?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+    username: ${OJ_MYSQL_USER:oj}
+    password: ${OJ_MYSQL_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: ${OJ_MYSQL_POOL_MIN:2}
+      maximum-pool-size: ${OJ_MYSQL_POOL_MAX:16}
 
 security:
   jwt:
@@ -157,8 +162,10 @@ security:
 set OJ_MYSQL_HOST=127.0.0.1
 set OJ_MYSQL_PORT=3306
 set OJ_MYSQL_DATABASE=oj
-set OJ_MYSQL_USER=root
-set OJ_MYSQL_PASSWORD=password
+set OJ_MYSQL_USER=oj
+set OJ_MYSQL_PASSWORD=
+set OJ_MYSQL_POOL_MIN=2
+set OJ_MYSQL_POOL_MAX=16
 mvn spring-boot:run
 ```
 
