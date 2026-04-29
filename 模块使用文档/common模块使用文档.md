@@ -1,90 +1,239 @@
-# OJ 开发环境配置（公共服务模块）
+# 公共服务模块使用文档（common）
 
-## 1. 构建（Windows / MinGW 示例）
+## 1. 模块定位
 
-在仓库根目录 `OJ-direct-test` 下：
+`common` 为 OJ 各业务模块提供统一基础能力，当前包含：
+
+- 配置管理（环境变量读取与默认值）
+- 日志能力（统一日志级别与输出）
+- MySQL 连接池封装（可选启用）
+- Redis 缓存封装（可选启用）
+- 错误 JSON 输出工具
+- 基础设施启动/关闭编排（bootstrap）
+
+当前建议：`judge`、`discussion`、`rank` 直接链接 `oj_common`；`management`（Java）保持配置语义对齐，不直接调用 C++ 接口。
+
+---
+
+## 2. 目录结构
+
+```text
+common/
+├── include/oj/
+│   ├── bootstrap.h
+│   ├── config.h
+│   ├── json_error.h
+│   ├── log.h
+│   ├── mysql_pool.h
+│   └── redis_cache.h
+├── src/
+│   ├── bootstrap.cpp
+│   ├── config.cpp
+│   ├── json_error.cpp
+│   ├── log.cpp
+│   ├── mysql_pool.cpp
+│   └── redis_cache.cpp
+├── tests/
+│   └── common_smoke_test.cpp
+└── CMakeLists.txt
+```
+
+---
+
+## 3. 与评测模块（judge）对齐的构建方式
+
+与 `评测模块使用文档` 一致，统一使用根目录 CMake 构建。
+
+在仓库根目录执行：
 
 ```powershell
-mkdir build
+New-Item -ItemType Directory -Force -Path build
 cd build
 cmake .. -G "MinGW Makefiles"
 cmake --build .
 ```
 
-- 仅评测子工程（旧方式）：也可在 `judge` 目录单独配置 CMake，脚本会自动加入上一级 `common` 库。
-
-## 2. 运行 `judge_engine`
-
-可执行文件一般在 `build/judge/judge_engine.exe`（若从根目录配置）或 `build/judge_engine.exe`（取决于生成器与 CMake 版本）。启动前请在**含 `judge/config/languages.json` 的工作目录**下运行，例如：
+如果只验证 common 冒烟测试：
 
 ```powershell
-cd d:\...\OJ-direct-test\judge
-..\build\judge\judge_engine.exe
+cmake --build . --target common_smoke_test
+.\common\common_smoke_test.exe
 ```
 
-（路径按你本机 `build` 实际输出调整。）
+> 若路径含中文导致 MinGW/Ninja 路径问题，可临时映射盘符后构建：
 
-## 3. 环境变量（公共服务）
+```powershell
+subst X: "d:\你的项目路径\OJ-direct-test"
+cmake -S X:/ -B X:/build-ascii -G Ninja
+cmake --build X:/build-ascii --target common_smoke_test
+X:/build-ascii/common/common_smoke_test.exe
+subst X: /D
+```
 
-| 变量 | 说明 | 默认 |
-|------|------|------|
-| `OJ_MYSQL_HOST` | MySQL 主机 | 127.0.0.1 |
-| `OJ_MYSQL_PORT` | 端口 | 3306 |
-| `OJ_MYSQL_USER` | 用户 | oj |
-| `OJ_MYSQL_PASSWORD` | 密码 | 空 |
-| `OJ_MYSQL_DATABASE` | 库名 | oj |
-| `OJ_MYSQL_POOL_MIN` | 连接池最小连接数 | 2 |
-| `OJ_MYSQL_POOL_MAX` | 连接池最大连接数 | 16 |
-| `OJ_REDIS_HOST` | Redis 主机 | 127.0.0.1 |
-| `OJ_REDIS_PORT` | Redis 端口 | 6379 |
-| `OJ_REDIS_PASSWORD` | Redis 密码（可选） | 空 |
-| `OJ_REDIS_DB` | 逻辑库索引 | 0 |
-| `OJ_LOG_FILE` | 日志文件路径（可选） | 空（仅控制台） |
-| `OJ_LOG_LEVEL` | debug / info / warning / error | info |
+---
 
-未开启 CMake 选项时：**MySQL 连接池与 Redis 客户端以占位方式编译**，进程可启动，`/health` 中 `mysql_pool_ready` / `redis_ready` 为 `false`。
+## 4. 对外接口（供业务模块接入）
 
-## 4. 启用 MySQL Connector/C++
+### 4.1 配置加载
 
-配置 CMake：
+```cpp
+#include "oj/config.h"
+
+oj::AppConfig cfg = oj::loadConfigFromEnv();
+```
+
+### 4.2 基础设施生命周期
+
+```cpp
+#include "oj/bootstrap.h"
+
+oj::initInfrastructure(cfg);
+// ... 业务逻辑
+oj::shutdownInfrastructure();
+```
+
+### 4.3 日志
+
+```cpp
+#include "oj/log.h"
+
+OJ_LOG_INFO("service started");
+OJ_LOG_WARN("cache unavailable");
+OJ_LOG_ERROR("db connect failed");
+```
+
+### 4.4 错误 JSON
+
+```cpp
+#include "oj/json_error.h"
+
+std::string body = oj::makeErrorJson("BAD_REQUEST", "invalid parameter");
+```
+
+### 4.5 MySQL 连接池
+
+```cpp
+#include "oj/mysql_pool.h"
+
+auto& pool = oj::MysqlConnectionPool::instance();
+if (pool.available()) {
+    void* conn = pool.acquire();
+    // 使用后务必释放
+    pool.release(conn);
+}
+```
+
+### 4.6 Redis 缓存
+
+```cpp
+#include "oj/redis_cache.h"
+
+auto& cache = oj::RedisCache::instance();
+if (cache.connected()) {
+    cache.set("k", "v", 60);
+}
+```
+
+---
+
+## 5. 统一环境变量规范（项目级）
+
+### 5.1 MySQL
+
+| 变量 | 默认值 | 说明 |
+|---|---|---|
+| `OJ_MYSQL_HOST` | `127.0.0.1` | MySQL 主机 |
+| `OJ_MYSQL_PORT` | `3306` | MySQL 端口 |
+| `OJ_MYSQL_USER` | `oj` | 用户名 |
+| `OJ_MYSQL_PASSWORD` | 空 | 密码 |
+| `OJ_MYSQL_DATABASE` | `myOJ` | 数据库名 |
+| `OJ_MYSQL_POOL_MIN` | `2` | 连接池最小连接数 |
+| `OJ_MYSQL_POOL_MAX` | `16` | 连接池最大连接数 |
+
+### 5.2 Redis
+
+| 变量 | 默认值 | 说明 |
+|---|---|---|
+| `OJ_REDIS_HOST` | `127.0.0.1` | Redis 主机 |
+| `OJ_REDIS_PORT` | `6379` | Redis 端口 |
+| `OJ_REDIS_PASSWORD` | 空 | Redis 密码（可选） |
+| `OJ_REDIS_DB` | `0` | 逻辑库索引 |
+
+### 5.3 日志
+
+| 变量 | 默认值 | 说明 |
+|---|---|---|
+| `OJ_LOG_FILE` | 空 | 日志文件路径；为空时仅控制台 |
+| `OJ_LOG_LEVEL` | `info` | `debug/info/warning/error` |
+
+---
+
+## 6. 可选依赖开关与行为
+
+### 6.1 启用 MySQL Connector/C++
 
 ```powershell
 cmake .. -G "MinGW Makefiles" -DOJ_ENABLE_MYSQL=ON -DMYSQL_CONCPP_INCLUDE="C:/path/to/mysql-connector/include" -DMYSQL_CONCPP_LIB="C:/path/to/mysqlcppconn.lib"
 ```
 
-或使用 vcpkg 安装 `mysql-connector-cpp` 后，按 vcpkg 文档设置 toolchain，并打开 `OJ_ENABLE_MYSQL`。
-
-若头文件路径与 `cppconn/*.h`、`mysql_driver.h` 不一致，请修改 `common/src/mysql_pool.cpp` 中的 `#include` 或追加 `target_include_directories`。
-
-## 5. 启用 hiredis（Redis）
+### 6.2 启用 Redis（hiredis）
 
 ```powershell
-cmake .. -DOJ_ENABLE_REDIS=ON
+cmake .. -G "MinGW Makefiles" -DOJ_ENABLE_REDIS=ON
 ```
 
-需已安装 hiredis 并在 CMake 中能找到目标 `hiredis::hiredis` 或库文件 `hiredis`。
+### 6.3 未启用依赖时
 
-## 6. 健康检查与前端联调
+- MySQL/Redis 会进入降级状态（`available()/connected()` 为 `false`）
+- 启动时输出 WARN
+- 这是预期行为，不视为故障
 
-- `GET /health`：返回 JSON，包含 MySQL 池、Redis 是否就绪及池统计。
-- 已启用 Crow **全局 CORS**（`Access-Control-Allow-Origin: *` 等），便于 Vue 开发服务器跨域调用 API。
+---
 
-## 7. Docker 一键起 MySQL + Redis（可选）
+## 7. 与其他模块的对接约定
 
-```yaml
-# 示例 docker-compose.yml 可自行保存到项目外
-services:
-  mysql:
-    image: mysql:8.0
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: oj
-      MYSQL_USER: oj
-      MYSQL_PASSWORD: ojpass
-    ports: ["3306:3306"]
-  redis:
-    image: redis:7
-    ports: ["6379:6379"]
+### judge / discussion / rank（C++）
+
+1. 在 CMake 中链接 `oj_common`
+2. 程序入口统一执行：
+   - `cfg = loadConfigFromEnv()`
+   - `initInfrastructure(cfg)`
+3. 程序退出统一执行：`shutdownInfrastructure()`
+4. 新增代码不再重复定义 MySQL/Redis/日志环境变量名
+
+### management（Java）
+
+- 不直接调用 common C++ 接口
+- 保持 `spring.datasource` 读取同一套 `OJ_MYSQL_*` 环境变量
+- 连接池参数语义对齐：
+  - `OJ_MYSQL_POOL_MIN` ↔ `hikari.minimum-idle`
+  - `OJ_MYSQL_POOL_MAX` ↔ `hikari.maximum-pool-size`
+
+---
+
+## 8. 冒烟测试说明
+
+`common_smoke_test` 当前覆盖：
+
+- 配置环境变量读取
+- 错误 JSON 转义
+- 日志文件写入
+- bootstrap 启停流程
+- MySQL/Redis 在未启用依赖时的降级行为
+
+运行方式：
+
+```powershell
+cmake --build . --target common_smoke_test
+.\common\common_smoke_test.exe
 ```
 
-启动后设置 `OJ_MYSQL_PASSWORD=ojpass` 等与上面一致，再打开 `OJ_ENABLE_MYSQL` / `OJ_ENABLE_REDIS` 重新 CMake 编译。
+通过标准：输出 `Common smoke tests passed.`
+
+---
+
+## 9. 当前状态与边界
+
+- common 核心功能已实现并可接入。
+- 当前定位是“功能可用版”，非性能压测版。
+- 若后续调整环境变量名/默认值，需同步更新本文件与各模块配置。

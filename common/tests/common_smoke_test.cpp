@@ -5,6 +5,7 @@
 #include "oj/mysql_pool.h"
 #include "oj/redis_cache.h"
 
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -12,6 +13,13 @@
 #include <string>
 
 namespace {
+
+constexpr const char* kEnvMysqlHost = "OJ_MYSQL_HOST";
+constexpr const char* kEnvMysqlPort = "OJ_MYSQL_PORT";
+constexpr const char* kEnvMysqlUser = "OJ_MYSQL_USER";
+constexpr const char* kEnvRedisDb = "OJ_REDIS_DB";
+constexpr const char* kEnvLogLevel = "OJ_LOG_LEVEL";
+constexpr const char* kBootstrapStartLog = "OJ public infrastructure starting";
 
 struct ScopedEnvVar {
     std::string key;
@@ -52,53 +60,67 @@ bool expect(bool condition, const std::string& message) {
     return true;
 }
 
+std::filesystem::path makeTempLogPath(const std::string& tag) {
+    const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
+    return std::filesystem::temp_directory_path() /
+           ("oj_common_" + tag + "_" + std::to_string(now) + ".log");
+}
+
+std::string readWholeFile(const std::filesystem::path& p) {
+    std::ifstream in(p);
+    return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+}
+
 bool testLoadConfigFromEnv() {
-    ScopedEnvVar mysql_host("OJ_MYSQL_HOST", "192.168.0.10");
-    ScopedEnvVar mysql_port("OJ_MYSQL_PORT", "3307");
-    ScopedEnvVar mysql_user("OJ_MYSQL_USER", "judge_user");
-    ScopedEnvVar redis_db("OJ_REDIS_DB", "5");
-    ScopedEnvVar log_level("OJ_LOG_LEVEL", "debug");
+    const std::string expected_mysql_host = "192.168.0.10";
+    const std::string expected_mysql_port = "3307";
+    const std::string expected_mysql_user = "judge_user";
+    const std::string expected_redis_db = "5";
+    const std::string expected_log_level = "debug";
+
+    ScopedEnvVar mysql_host(kEnvMysqlHost, expected_mysql_host);
+    ScopedEnvVar mysql_port(kEnvMysqlPort, expected_mysql_port);
+    ScopedEnvVar mysql_user(kEnvMysqlUser, expected_mysql_user);
+    ScopedEnvVar redis_db(kEnvRedisDb, expected_redis_db);
+    ScopedEnvVar log_level(kEnvLogLevel, expected_log_level);
 
     const oj::AppConfig cfg = oj::loadConfigFromEnv();
-    return expect(cfg.mysql_host == "192.168.0.10", "config reads mysql host from env") &&
-           expect(cfg.mysql_port == 3307, "config reads mysql port from env") &&
-           expect(cfg.mysql_user == "judge_user", "config reads mysql user from env") &&
-           expect(cfg.redis_db == 5, "config reads redis db from env") &&
-           expect(cfg.log_level == "debug", "config reads log level from env");
+    return expect(cfg.mysql_host == expected_mysql_host, "config reads mysql host from env") &&
+           expect(cfg.mysql_port == static_cast<unsigned>(std::stoul(expected_mysql_port)),
+                  "config reads mysql port from env") &&
+           expect(cfg.mysql_user == expected_mysql_user, "config reads mysql user from env") &&
+           expect(cfg.redis_db == std::stoi(expected_redis_db), "config reads redis db from env") &&
+           expect(cfg.log_level == expected_log_level, "config reads log level from env");
 }
 
 bool testMakeErrorJson() {
-    const std::string json = oj::makeErrorJson("bad\ncode", "line1\n\"quoted\"\\tail\t");
-    return expect(json == "{\"error_code\":\"bad\\ncode\",\"message\":\"line1\\n\\\"quoted\\\"\\\\tail\\t\"}",
-                  "error json escapes control characters correctly");
+    const std::string input_code = "bad\ncode";
+    const std::string input_message = "line1\n\"quoted\"\\tail\t";
+    const std::string expected =
+        "{\"error_code\":\"bad\\ncode\",\"message\":\"line1\\n\\\"quoted\\\"\\\\tail\\t\"}";
+    const std::string json = oj::makeErrorJson(input_code, input_message);
+    return expect(json == expected, "error json escapes control characters correctly");
 }
 
 bool testLoggerWritesFile() {
-    namespace fs = std::filesystem;
-    const fs::path log_path = fs::temp_directory_path() / "oj_common_smoke.log";
-    fs::remove(log_path);
+    const auto log_path = makeTempLogPath("logger");
+    std::filesystem::remove(log_path);
 
     oj::Logger::instance().init(oj::LogLevel::Info, log_path.string());
     oj::Logger::instance().info("common smoke logger test");
     oj::Logger::instance().init(oj::LogLevel::Info);
 
-    std::string content;
-    {
-        std::ifstream in(log_path);
-        content.assign((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    }
-
-    const bool ok = expect(fs::exists(log_path), "logger creates output file") &&
+    const std::string content = readWholeFile(log_path);
+    const bool ok = expect(std::filesystem::exists(log_path), "logger creates output file") &&
                     expect(content.find("common smoke logger test") != std::string::npos,
                            "logger writes message to file");
-    fs::remove(log_path);
+    std::filesystem::remove(log_path);
     return ok;
 }
 
 bool testBootstrapWithoutOptionalBackends() {
-    namespace fs = std::filesystem;
-    const fs::path log_path = fs::temp_directory_path() / "oj_bootstrap_smoke.log";
-    fs::remove(log_path);
+    const auto log_path = makeTempLogPath("bootstrap");
+    std::filesystem::remove(log_path);
 
     oj::AppConfig cfg;
     cfg.log_level = "debug";
@@ -113,15 +135,10 @@ bool testBootstrapWithoutOptionalBackends() {
     oj::shutdownInfrastructure();
     oj::Logger::instance().init(oj::LogLevel::Info);
 
-    std::string content;
-    {
-        std::ifstream in(log_path);
-        content.assign((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    }
-
-    const bool log_written = expect(content.find("OJ public infrastructure starting") != std::string::npos,
-                                    "bootstrap writes startup log");
-    fs::remove(log_path);
+    const std::string content = readWholeFile(log_path);
+    const bool log_written =
+        expect(content.find(kBootstrapStartLog) != std::string::npos, "bootstrap writes startup log");
+    std::filesystem::remove(log_path);
     return mysql_disabled && redis_disabled && log_written;
 }
 
@@ -138,7 +155,6 @@ int main() {
         std::cerr << "Common smoke tests failed." << std::endl;
         return 1;
     }
-
     std::cout << "Common smoke tests passed." << std::endl;
     return 0;
 }
